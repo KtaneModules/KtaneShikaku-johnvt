@@ -103,7 +103,6 @@ public class Shikaku : MonoBehaviour
             ShapeType = shapeType,
             Color = Colors[shapeNumber],
             Direction = RandomDirection(),
-            HintNode = startNode,
             Nodes = new List<int>()
         };
 
@@ -120,6 +119,7 @@ public class Shikaku : MonoBehaviour
                 if (shape.Nodes.Count < 2) return false;
                 break;
         }
+        shape.HintNode = shape.Nodes[Rnd.Range(0, shape.Nodes.Count)];
         _shapes.Add(shape);
         foreach (var node in shape.Nodes) _grid[node] = shapeNumber;
 
