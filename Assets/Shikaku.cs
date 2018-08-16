@@ -44,27 +44,26 @@ public class Shikaku : MonoBehaviour
     private int[] _grid = new int[36];
     private ShapeType[] _shapeTypes = new ShapeType[]
     {
-        new ShapeType() { Shape = ShapeLine, Name = "Line", MinSize = 2 },
-        new ShapeType() { Shape = ShapeL, Name = "L", MinSize = 3 },
-        new ShapeType() { Shape = ShapeT, Name = "T", MinSize = 4 },
-        new ShapeType() { Shape = ShapeU, Name = "U", MinSize = 5 },
-        new ShapeType() { Shape = ShapePlus, Name = "Plus", MinSize = 5 },
-        new ShapeType() { Shape = ShapeSquare, Name = "Square", MinSize = 4 },
-        new ShapeType() { Shape = ShapeH, Name = "H", MinSize = 7 },
-        new ShapeType() { Shape = ShapeSmallS, Name = "Small S", MinSize = 4 },
-        new ShapeType() { Shape = ShapeSmallZ, Name = "Small Z", MinSize = 4 },
-        new ShapeType() { Shape = ShapeLargeS, Name = "Large S", MinSize = 5 },
-        new ShapeType() { Shape = ShapeLargeZ, Name = "Large Z", MinSize = 5 },
-        new ShapeType() { Shape = Shape2, Name = "2", MinSize = 2 },
-        new ShapeType() { Shape = Shape3, Name = "3", MinSize = 3 },
-        new ShapeType() { Shape = Shape4, Name = "4", MinSize = 4 },
-        new ShapeType() { Shape = Shape5, Name = "5", MinSize = 5 },
-        new ShapeType() { Shape = Shape6, Name = "6", MinSize = 6 },
-        new ShapeType() { Shape = Shape7, Name = "7", MinSize = 7 }
+        new ShapeType() { Shape = ShapeLine, Name = "Line", MinSize = 2, HintChars = "ABAB" },
+        new ShapeType() { Shape = ShapeL, Name = "L", MinSize = 3, HintChars = "CDEF" },
+        new ShapeType() { Shape = ShapeT, Name = "T", MinSize = 4, HintChars = "GHIJ" },
+        new ShapeType() { Shape = ShapeU, Name = "U", MinSize = 5, HintChars = "KLMN" },
+        new ShapeType() { Shape = ShapePlus, Name = "Plus", MinSize = 5, HintChars = "OOOO" },
+        new ShapeType() { Shape = ShapeSquare, Name = "Square", MinSize = 4, HintChars = "PPPP" },
+        new ShapeType() { Shape = ShapeH, Name = "H", MinSize = 7, HintChars = "QRQR" },
+        new ShapeType() { Shape = ShapeSmallS, Name = "Small S", MinSize = 4, HintChars = "STST" },
+        new ShapeType() { Shape = ShapeSmallZ, Name = "Small Z", MinSize = 4, HintChars = "UVUV" },
+        new ShapeType() { Shape = ShapeLargeS, Name = "Large S", MinSize = 5, HintChars = "WXWX" },
+        new ShapeType() { Shape = ShapeLargeZ, Name = "Large Z", MinSize = 5, HintChars = "YZYZ" },
+        new ShapeType() { Shape = Shape2, Name = "2", MinSize = 2, HintChars = "2222" },
+        new ShapeType() { Shape = Shape3, Name = "3", MinSize = 3, HintChars = "3333" },
+        new ShapeType() { Shape = Shape4, Name = "4", MinSize = 4, HintChars = "4444" },
+        new ShapeType() { Shape = Shape5, Name = "5", MinSize = 5, HintChars = "5555" },
+        new ShapeType() { Shape = Shape6, Name = "6", MinSize = 6, HintChars = "6666" },
+        new ShapeType() { Shape = Shape7, Name = "7", MinSize = 7, HintChars = "7777" }
     };
     private KMSelectable[] _buttons = new KMSelectable[36];
     private TextMesh[] _hints = new TextMesh[36];
-    private string _hintChars = "ABABCDEFGHIJKLMNOOOOPPPPQRQRSTSTUVUVWXWXYZYZ222233334444555566667777";
     private List<Shape> _shapes = new List<Shape>();
 
     void Start()
@@ -91,6 +90,8 @@ public class Shikaku : MonoBehaviour
     private void GeneratePuzzle()
     {
         var puzzleTries = 0;
+
+        // Add some shapes
         while (_shapes.Count < 5 && puzzleTries < 100)
         {
             puzzleTries++;
@@ -106,23 +107,46 @@ public class Shikaku : MonoBehaviour
             }
             DevLog((success ? "Succeeded" : "Failed") + " to add a " + shapeType.Name + " in " + shapeTries.ToString() + " tries");
         }
+
+        // Fill in the gaps
+        int cursorNode;
+        foreach (var shape in _shapes)
+        {
+            foreach (var extension in shape.Extensions)
+            {
+                cursorNode = extension.Node;
+                while (Step(ref cursorNode, extension.Direction))
+                {
+                    extension.Node = cursorNode;
+                    shape.Nodes.Add(cursorNode);
+                }
+                foreach (var node in shape.Nodes) _grid[node] = shape.Color;
+            }
+        }
+
+        // Random hints
+        foreach (var shape in _shapes)
+        {
+            shape.HintNode = shape.Nodes[Rnd.Range(0, shape.Nodes.Count)];
+            _hints[shape.HintNode].text = shape.ShapeType.HintChars[(int)shape.Direction].ToString();
+        }
     }
 
-    private bool TryToAddShape(ShapeType shapeType, int shapeNumber)
+    private bool TryToAddShape(ShapeType shapeType, int color)
     {
         // Random starting node
         var shape = new Shape()
         {
             ShapeType = shapeType,
-            Color = Colors[shapeNumber],
-            Direction = RandomDirection(),
-            Nodes = new List<int>()
+            Color = color,
+            Direction = RandomDirection()
         };
 
         int startNode;
         do startNode = Rnd.Range(0, _grid.Length);
         while (_grid[startNode] != Empty);
         var cursorNode = startNode;
+        shape.Nodes.Add(cursorNode);
         var direction = shape.Direction;
         var nodeCount = 0;
 
@@ -130,6 +154,7 @@ public class Shikaku : MonoBehaviour
         switch (shapeType.Shape)
         {
             case ShapeLine:
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
                 while (Step(ref cursorNode, direction))
                 {
                     shape.Nodes.Add(cursorNode);
@@ -143,6 +168,7 @@ public class Shikaku : MonoBehaviour
             case ShapeL:
                 var startFromTop = Rnd.Range(0f, 1f) < .5; // Start drawing from the top of the L or from the right
                 direction = startFromTop ? Turn180(direction) : TurnLeft(direction);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
                 while (Step(ref cursorNode, direction))
                 {
                     shape.Nodes.Add(cursorNode);
@@ -168,10 +194,8 @@ public class Shikaku : MonoBehaviour
                 break;
         }
 
-        shape.HintNode = shape.Nodes[Rnd.Range(0, shape.Nodes.Count)];
+        foreach (var node in shape.Nodes) _grid[node] = shape.Color;
         _shapes.Add(shape);
-        foreach (var node in shape.Nodes) _grid[node] = shapeNumber;
-        _hints[shape.HintNode].text = _hintChars[shape.ShapeType.Shape * 4 + (int)shape.Direction].ToString();
 
         return true;
     }
@@ -246,20 +270,34 @@ public class Shikaku : MonoBehaviour
         Debug.Log(message);
     }
 
-    struct ShapeType
+    class ShapeType
     {
         public int Shape { get; set; }
         public string Name { get; set; }
         public int MinSize { get; set; }
+        public string HintChars { get; set; }
     }
 
-    struct Shape
+    class Extension
+    {
+        public int Node { get; set; }
+        public Direction Direction { get; set; }
+    }
+
+    class Shape
     {
         public ShapeType ShapeType { get; set; }
         public List<int> Nodes { get; set; }
         public int HintNode { get; set; }
         public Direction Direction { get; set; }
-        public Material Color { get; set; }
-        // @todo: List of possible extensions, they can be visited in a later stage to fill the gaps
+        public int Color { get; set; }
+        // List of possible extensions, they can be visited in a later stage to fill the gaps
+        public List<Extension> Extensions { get; set; }
+
+        public Shape()
+        {
+            Nodes = new List<int>();
+            Extensions = new List<Extension>();
+        }
     }
 }
