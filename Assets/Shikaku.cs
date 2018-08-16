@@ -111,11 +111,6 @@ public class Shikaku : MonoBehaviour
     private bool TryToAddShape(ShapeType shapeType, int shapeNumber)
     {
         // Random starting node
-        int startNode;
-        do startNode = Rnd.Range(0, _grid.Length);
-        while (_grid[startNode] != Empty);
-        int cursorNode = startNode;
-
         var shape = new Shape()
         {
             ShapeType = shapeType,
@@ -124,14 +119,20 @@ public class Shikaku : MonoBehaviour
             Nodes = new List<int>()
         };
 
+        int startNode;
+        do startNode = Rnd.Range(0, _grid.Length);
+        while (_grid[startNode] != Empty);
+        var cursorNode = startNode;
+        var direction = shape.Direction;
+        var nodeCount = 0;
+
         // Construct basic shape
         switch (shapeType.Shape)
         {
             case ShapeLine:
-                while (cursorNode != OutOfBounds && _grid[cursorNode] == Empty)
+                while (Step(ref cursorNode, direction))
                 {
                     shape.Nodes.Add(cursorNode);
-                    cursorNode = Step(cursorNode, shape.Direction);
                 }
                 if (shape.Nodes.Count < 2)
                 {
@@ -140,36 +141,33 @@ public class Shikaku : MonoBehaviour
                 }
                 break;
             case ShapeL:
-                while (cursorNode != OutOfBounds && _grid[cursorNode] == Empty)
+                var startFromTop = Rnd.Range(0f, 1f) < .5; // Start drawing from the top of the L or from the right
+                direction = startFromTop ? Turn180(direction) : TurnLeft(direction);
+                while (Step(ref cursorNode, direction))
                 {
                     shape.Nodes.Add(cursorNode);
-                    cursorNode = Step(cursorNode, shape.Direction);
                 }
-                cursorNode = Step(cursorNode, Turn180(shape.Direction));
                 if (shape.Nodes.Count < 2)
                 {
                     DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction + "; only room for 1.");
                     return false;
                 }
-                // Direction part2Direction = Rnd.Range(0f, 1f) < .5 ? TurnLeft(shape.Direction) : TurnRight(shape.Direction);
-                Direction part2Direction = TurnLeft(shape.Direction);
-                var part2NodeCount = 1;
-                cursorNode = Step(cursorNode, part2Direction);
-                while (cursorNode != OutOfBounds && _grid[cursorNode] == Empty)
+                direction = startFromTop ? TurnLeft(direction) : TurnRight(direction);
+                nodeCount = 1;
+                while (Step(ref cursorNode, direction))
                 {
                     shape.Nodes.Add(cursorNode);
-                    part2NodeCount++;
-                    cursorNode = Step(cursorNode, part2Direction);
+                    nodeCount++;
                 }
-                if (part2NodeCount < 2)
+                if (nodeCount < 2)
                 {
                     DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + ", part 2 going " + part2Direction + "; only room for 1");
+                        + ", part 2 going " + direction + "; only room for 1");
                     return false;
                 }
-
                 break;
         }
+
         shape.HintNode = shape.Nodes[Rnd.Range(0, shape.Nodes.Count)];
         _shapes.Add(shape);
         foreach (var node in shape.Nodes) _grid[node] = shapeNumber;
@@ -199,25 +197,36 @@ public class Shikaku : MonoBehaviour
         return (Direction)(((int)direction + 3) % 4);
     }
 
-    private int Step(int node, Direction direction)
+    private bool Step(ref int node, Direction direction)
     {
+        var newNode = node;
         switch (direction)
         {
             case Direction.Up:
-                if (node / Width == 0) return -1;
-                return node - Width;
+                if (node / Width == 0) return false;
+                newNode = node - Width;
+                break;
             case Direction.Right:
-                if (node % Width == Width - 1) return -1;
-                return node + 1;
+                if (node % Width == Width - 1) return false;
+                newNode = node + 1;
+                break;
             case Direction.Down:
-                if (node / Width == Height - 1) return -1;
-                return node + Width;
+                if (node / Width == Height - 1) return false;
+                newNode = node + Width;
+                break;
             case Direction.Left:
-                if (node % Width == 0) return -1;
-                return node - 1;
+                if (node % Width == 0) return false;
+                newNode = node - 1;
+                break;
             default:
-                return -1;
+                return false;
         }
+
+        if (_grid[newNode] != Empty)
+            return false;
+
+        node = newNode;
+        return true;
     }
 
     private void Refresh()
@@ -251,5 +260,6 @@ public class Shikaku : MonoBehaviour
         public int HintNode { get; set; }
         public Direction Direction { get; set; }
         public Material Color { get; set; }
+        // @todo: List of possible extensions, they can be visited in a later stage to fill the gaps
     }
 }
