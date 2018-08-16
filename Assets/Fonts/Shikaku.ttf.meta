@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 0dab8faf8709ef54398d091e44a91bb4
+timeCreated: 1534413497
+licenseType: Free
+TrueTypeFontImporter:
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: Shikaku
+  fontNames:
+  - Shikaku
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
