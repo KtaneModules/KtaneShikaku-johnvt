@@ -13,18 +13,18 @@ public class Shikaku : MonoBehaviour
     const int ShapeT = 2;
     const int ShapeU = 3;
     const int ShapePlus = 4;
-    const int ShapeSquare = 5;
-    const int ShapeH = 6;
-    const int ShapeSmallS = 8;
-    const int ShapeSmallZ = 9;
-    const int ShapeLargeS = 10;
-    const int ShapeLargeZ = 11;
-    const int Shape2 = 12;
-    const int Shape3 = 13;
-    const int Shape4 = 14;
-    const int Shape5 = 15;
-    const int Shape6 = 16;
-    const int Shape7 = 17;
+    const int ShapeH = 5;
+    const int ShapeSmallS = 6;
+    const int ShapeSmallZ = 7;
+    const int ShapeLargeS = 8;
+    const int ShapeLargeZ = 9;
+    const int Shape2 = 10;
+    const int Shape3 = 11;
+    const int Shape4 = 12;
+    const int Shape5 = 13;
+    const int Shape6 = 14;
+    const int Shape7 = 15;
+    const int ShapeSquare = 16;
 
     const int Width = 6;
     const int Height = 6;
@@ -49,7 +49,6 @@ public class Shikaku : MonoBehaviour
         new ShapeType() { Shape = ShapeT, Name = "T", MinSize = 4, HintChars = "GHIJ", MaxCount = 2 },
         new ShapeType() { Shape = ShapeU, Name = "U", MinSize = 5, HintChars = "KLMN", MaxCount = 2 },
         new ShapeType() { Shape = ShapePlus, Name = "Plus", MinSize = 5, HintChars = "OOOO", MaxCount = 1 },
-        new ShapeType() { Shape = ShapeSquare, Name = "Square", MinSize = 4, HintChars = "PPPP", MaxCount = 1 },
         new ShapeType() { Shape = ShapeH, Name = "H", MinSize = 7, HintChars = "QRQR", MaxCount = 1 },
         new ShapeType() { Shape = ShapeSmallS, Name = "Small S", MinSize = 4, HintChars = "STST", MaxCount = 1 },
         new ShapeType() { Shape = ShapeSmallZ, Name = "Small Z", MinSize = 4, HintChars = "UVUV", MaxCount = 1 },
@@ -60,7 +59,8 @@ public class Shikaku : MonoBehaviour
         new ShapeType() { Shape = Shape4, Name = "4", MinSize = 4, HintChars = "4444", MaxCount = 2 },
         new ShapeType() { Shape = Shape5, Name = "5", MinSize = 5, HintChars = "5555", MaxCount = 2 },
         new ShapeType() { Shape = Shape6, Name = "6", MinSize = 6, HintChars = "6666", MaxCount = 1 },
-        new ShapeType() { Shape = Shape7, Name = "7", MinSize = 7, HintChars = "7777", MaxCount = 1 }
+        new ShapeType() { Shape = Shape7, Name = "7", MinSize = 7, HintChars = "7777", MaxCount = 1 },
+        new ShapeType() { Shape = ShapeSquare, Name = "Square", MinSize = 4, HintChars = "PPPP", MaxCount = 1 }
     };
     private KMSelectable[] _buttons = new KMSelectable[36];
     private TextMesh[] _hints = new TextMesh[36];
@@ -97,7 +97,7 @@ public class Shikaku : MonoBehaviour
             puzzleTries++;
             //var shapeType = _shapeTypes[Rnd.Range(0, _shapeTypes.Length)];
             ShapeType shapeType;
-            do shapeType = _shapeTypes[Rnd.Range(0, ShapeH + 1)];
+            do shapeType = _shapeTypes[Rnd.Range(0, ShapeLargeZ + 1)];
             while (shapeType.Count == shapeType.MaxCount);
             var shapeTries = 0;
             var success = false;
@@ -150,240 +150,175 @@ public class Shikaku : MonoBehaviour
         var cursorNode = startNode;
         shape.Nodes.Add(cursorNode);
         var direction = shape.Direction;
-        var nodeCount = 0;
+        var numNodes = 0;
 
         // Construct basic shape
         switch (shapeType.Shape)
         {
             case ShapeLine:
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
-                while (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                }
-                if (shape.Nodes.Count < 2)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction + "; no room for 2.");
-                    return false;
-                }
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
             case ShapeL:
-                var startFromTop = Rnd.Range(0f, 1f) < .5; // Start drawing from the top of the L or from the right
-                direction = startFromTop ? Turn180(direction) : TurnLeft(direction);
-                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
-                while (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                }
-                if (shape.Nodes.Count < 2)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction + "; no room for 2.");
-                    return false;
-                }
-                direction = startFromTop ? TurnLeft(direction) : TurnRight(direction);
-                nodeCount = 1;
-                while (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                    nodeCount++;
-                }
-                if (nodeCount < 2)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + ", part 2 going " + direction + "; no room for 2.");
-                    return false;
-                }
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
+                direction = Turn180(direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                direction = TurnLeft(direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
             case ShapeT:
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
-                while (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                }
-                if (shape.Nodes.Count < 2)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction + "; no room for 2.");
-                    return false;
-                }
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
                 direction = TurnLeft(direction);
-                nodeCount = 1;
-                var jointNode = cursorNode;
-                while (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                    nodeCount++;
-                }
-                if (nodeCount < 2)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + ", part 2 going " + direction + "; no room for 2.");
-                    return false;
-                }
-                cursorNode = jointNode;
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 direction = Turn180(direction);
-                nodeCount = 1;
-                while (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                    nodeCount++;
-                }
-                if (nodeCount < 2)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + ", part 3 going " + direction + "; no room for 2.");
-                    return false;
-                }
+                Step(ref cursorNode, direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
             case ShapeU:
-                var startFromLeft = Rnd.Range(0f, 1f) < .5;
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 direction = Turn180(direction);
-                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                direction = TurnLeft(direction);
+                var maxNodes = Rnd.Range(3, Width);
+                numNodes = 1;
                 while (Step(ref cursorNode, direction))
                 {
                     shape.Nodes.Add(cursorNode);
+                    numNodes++;
+                    if (numNodes == maxNodes) break;
                 }
-                if (shape.Nodes.Count < 2)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction + "; no room for 2.");
-                    return false;
-                }
-                direction = startFromLeft ? TurnLeft(direction) : TurnRight(direction);
-                nodeCount = 1;
-                while (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                    nodeCount++;
-                }
-                if (nodeCount < 3)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + ", part 2 going " + direction + "; no room for 3.");
-                    return false;
-                }
-                direction = startFromLeft ? TurnLeft(direction) : TurnRight(direction);
-                nodeCount = 1;
-                while (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                    nodeCount++;
-                }
-                if (nodeCount < 2)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + ", part 3 going " + direction + "; no room for 2.");
-                    return false;
-                }
+                if (numNodes < 3) return false;
+                direction = TurnLeft(direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
             case ShapePlus:
-                direction = (Direction)Rnd.Range(0, 4);
                 for (var i = 0; i < 4; i++)
                 {
-                    if (Step(ref cursorNode, direction))
-                        shape.Nodes.Add(cursorNode);
-                    else
-                    {
-                        DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction + "; no room for 2.");
-                        return false;
-                    }
+                    if (!Step(ref cursorNode, direction)) return false;
+                    shape.Nodes.Add(cursorNode);
                     shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                     Step(ref cursorNode, Turn180(direction));
                     direction = TurnRight(direction);
                 }
                 break;
-            case ShapeSquare:
-                direction = (Direction)Rnd.Range(0, 4);
-                //var size = Rnd.Range(2, 3);
-                var size = 2;
-                for (var k = 1; k <= size; k++)
-                {
-                    for (var j = 0; j < 4; j++)
-                    {
-                        for (var i = 0; i < k; i++)
-                        {
-                            if (Step(ref cursorNode, direction))
-                                shape.Nodes.Add(cursorNode);
-                            else
-                            {
-                                DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction + "; no room for " + size + ".");
-                                return false;
-                            }
-                        }
-                        direction = TurnRight(direction);
-                    }
-                }
-                break;
             case ShapeH:
-                direction = (Direction)Rnd.Range(0, 4);
-                var maxWidth = Rnd.Range(3, 6);
-                nodeCount = 1;
+                direction = TurnRight(direction);
+                maxNodes = Rnd.Range(3, 6);
+                numNodes = 1;
                 while (Step(ref cursorNode, direction))
                 {
                     shape.Nodes.Add(cursorNode);
-                    nodeCount++;
-                    if (nodeCount == maxWidth) break;
+                    numNodes++;
+                    if (numNodes == maxNodes) break;
                 }
-                if (nodeCount < 3)
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + "; no room for 3.");
-                    return false;
-                }
-
+                if (numNodes < 3) return false;
                 direction = TurnRight(direction);
-                if (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                    shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
-                }
-                else
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + "; no room for one of the legs.");
-                    return false;
-                }
-
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 direction = Turn180(direction);
                 Step(ref cursorNode, direction);
-                if (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                    shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
-                }
-                else
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + "; no room for one of the legs.");
-                    return false;
-                }
-
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 cursorNode = startNode;
-                if (Step(ref cursorNode, direction))
-                {
-                    shape.Nodes.Add(cursorNode);
-                    shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
-                }
-                else
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + "; no room for one of the legs.");
-                    return false;
-                }
-
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 direction = Turn180(direction);
                 Step(ref cursorNode, direction);
-                if (Step(ref cursorNode, direction))
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
+                break;
+            case ShapeSmallS:
+                direction = TurnRight(direction);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                direction = TurnLeft(direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                direction = TurnRight(direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
+                break;
+            case ShapeSmallZ:
+                direction = TurnRight(direction);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                direction = TurnRight(direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                direction = TurnLeft(direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
+                break;
+            case ShapeLargeS:
+                direction = TurnRight(direction);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                direction = TurnLeft(direction);
+                maxNodes = Rnd.Range(3, 6);
+                numNodes = 1;
+                while (Step(ref cursorNode, direction))
                 {
                     shape.Nodes.Add(cursorNode);
-                    shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
+                    numNodes++;
+                    if (numNodes == maxNodes) break;
                 }
-                else
-                {
-                    DevLog("Failed to add a " + shapeType.Name + " at " + startNode + " directed " + shape.Direction
-                        + "; no room for one of the legs.");
-                    return false;
-                }
-
+                if (numNodes < 3) return false;
+                direction = TurnRight(direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
+            case ShapeLargeZ:
+                direction = TurnRight(direction);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                direction = TurnRight(direction);
+                maxNodes = Rnd.Range(3, 6);
+                numNodes = 1;
+                while (Step(ref cursorNode, direction))
+                {
+                    shape.Nodes.Add(cursorNode);
+                    numNodes++;
+                    if (numNodes == maxNodes) break;
+                }
+                if (numNodes < 3) return false;
+                direction = TurnLeft(direction);
+                if (!Step(ref cursorNode, direction)) return false;
+                shape.Nodes.Add(cursorNode);
+                shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
+                break;
+            /*case ShapeSquare:
+                for (var i = 0; i < 4; i++)
+                {
+                    if (!Step(ref cursorNode, direction)) return false;
+                    shape.Nodes.Add(cursorNode);
+                    direction = TurnRight(direction);
+                }
+                break;*/
         }
 
         foreach (var node in shape.Nodes) _grid[node] = shape.Color;
