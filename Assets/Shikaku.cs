@@ -24,7 +24,6 @@ public class Shikaku : MonoBehaviour
     const int Shape5 = 13;
     const int Shape6 = 14;
     const int Shape7 = 15;
-    const int ShapeSquare = 16;
 
     const int Width = 6;
     const int Height = 6;
@@ -60,7 +59,6 @@ public class Shikaku : MonoBehaviour
         new ShapeType() { Shape = Shape5, Name = "5", MinSize = 5, HintChars = "5555", MaxCount = 2 },
         new ShapeType() { Shape = Shape6, Name = "6", MinSize = 6, HintChars = "6666", MaxCount = 1 },
         new ShapeType() { Shape = Shape7, Name = "7", MinSize = 7, HintChars = "7777", MaxCount = 1 },
-        new ShapeType() { Shape = ShapeSquare, Name = "Square", MinSize = 4, HintChars = "PPPP", MaxCount = 1 }
     };
     private KMSelectable[] _buttons = new KMSelectable[36];
     private TextMesh[] _hints = new TextMesh[36];
@@ -107,24 +105,41 @@ public class Shikaku : MonoBehaviour
                 success = TryToAddShape(shapeType, _shapes.Count + 1);
                 if (success) break;
             }
-            DevLog((success ? "Succeeded" : "Failed") + " to add a " + shapeType.Name + " in " + shapeTries.ToString() + " tries");
-        }
 
-        // Fill in the gaps
-        int cursorNode;
-        foreach (var shape in _shapes)
-        {
-            foreach (var extension in shape.Extensions)
+            DevLog((success ? "Succeeded" : "Failed") + " to add a " + shapeType.Name + " in " + shapeTries.ToString() + " tries");
+
+            // Extend the shapes
+            int cursorNode;
+            foreach (var shape in _shapes)
             {
-                cursorNode = extension.Node;
-                while (Step(ref cursorNode, extension.Direction))
+                foreach (var extension in shape.Extensions)
                 {
-                    extension.Node = cursorNode;
-                    shape.Nodes.Add(cursorNode);
+                    cursorNode = extension.Node;
+                    while (Step(ref cursorNode, extension.Direction))
+                    {
+                        extension.Node = cursorNode;
+                        shape.Nodes.Add(cursorNode);
+                    }
+                    foreach (var node in shape.Nodes) _grid[node] = shape.Color;
                 }
-                foreach (var node in shape.Nodes) _grid[node] = shape.Color;
+            }
+
+            // Identify the empty areas that are left
+            for (var i = 0; i < _grid.Length; i++)
+            {
+                if (_grid[i] == 0)
+                {
+                    // Empty square found. Let's see how big it is
+                    var toCheck = new Queue<int>();
+                    toCheck.Enqueue(i);
+                    while (toCheck.Count > 0)
+                    {
+
+                    }
+                }
             }
         }
+
 
         // Random hints
         foreach (var shape in _shapes)
@@ -311,14 +326,6 @@ public class Shikaku : MonoBehaviour
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
-            /*case ShapeSquare:
-                for (var i = 0; i < 4; i++)
-                {
-                    if (!Step(ref cursorNode, direction)) return false;
-                    shape.Nodes.Add(cursorNode);
-                    direction = TurnRight(direction);
-                }
-                break;*/
         }
 
         foreach (var node in shape.Nodes) _grid[node] = shape.Color;
