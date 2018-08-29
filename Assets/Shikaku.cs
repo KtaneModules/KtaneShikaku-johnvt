@@ -87,26 +87,44 @@ public class Shikaku : MonoBehaviour
 
     private void GeneratePuzzle()
     {
-        var puzzleTries = 0;
-
-        // Add some shapes
-        while (_shapes.Count < 5 && puzzleTries < 10)
+        // Try to generate puzzle
+        var puzzleSuccess = false;
+        var tryPuzzle = 0;
+        while (tryPuzzle < 20)
         {
-            puzzleTries++;
-            //var shapeType = _shapeTypes[Rnd.Range(0, _shapeTypes.Length)];
-            ShapeType shapeType;
-            do shapeType = _shapeTypes[Rnd.Range(0, ShapeLargeZ + 1)];
-            while (shapeType.Count == shapeType.MaxCount);
-            var shapeTries = 0;
-            var success = false;
-            while (shapeTries < 10)
+            tryPuzzle++;
+
+            // Add some shapes. Try a bunch of times, doesn't really matter how many succeed, we'll check some conditions afterwards.
+            _shapes = new List<Shape>();
+            _grid = new int[36];
+            var tryShape = 0;
+            while (tryShape < 10)
             {
-                shapeTries++;
-                success = TryToAddShape(shapeType, _shapes.Count + 1);
-                if (success) break;
+                tryShape++;
+
+                ShapeType shapeType;
+                do shapeType = _shapeTypes[Rnd.Range(0, ShapeLargeZ + 1)];
+                while (shapeType.Count == shapeType.MaxCount);
+                var success = false;
+
+                var tryShapeType = 0;
+                while (tryShapeType < 10)
+                {
+                    tryShapeType++;
+                    success = TryToAddShape(shapeType, _shapes.Count + 1);
+                    if (success) break;
+                }
+
+                DevLog((success ? "Succeeded" : "Failed") + " to add a " + shapeType.Name + " in " + tryShapeType.ToString() + " tries");
+
+                if (_shapes.Count == 5) break;
             }
 
-            DevLog((success ? "Succeeded" : "Failed") + " to add a " + shapeType.Name + " in " + shapeTries.ToString() + " tries");
+            if (_shapes.Count < 4)
+            {
+                DevLog("Could not fit 4 shapes.");
+                continue;
+            }
 
             // Extend the shapes
             int cursorNode;
@@ -120,26 +138,56 @@ public class Shikaku : MonoBehaviour
                         extension.Node = cursorNode;
                         shape.Nodes.Add(cursorNode);
                     }
-                    foreach (var node in shape.Nodes) _grid[node] = shape.Color;
+                    foreach (var n in shape.Nodes) _grid[n] = shape.Color;
                 }
             }
 
             // Identify the empty areas that are left
+            var failed = false;
             for (var i = 0; i < _grid.Length; i++)
             {
                 if (_grid[i] == 0)
                 {
-                    // Empty square found. Let's see how big it is
-                    var toCheck = new Queue<int>();
-                    toCheck.Enqueue(i);
-                    while (toCheck.Count > 0)
+                    // Empty square found. Let's start a shape and see how big it is
+                    var shape = new Shape() { Color = _shapes.Count + 1 };
+                    var nodesToCheck = new Queue<int>();
+                    nodesToCheck.Enqueue(i);
+                    while (nodesToCheck.Count > 0)
                     {
-
+                        var node = nodesToCheck.Dequeue();
+                        if (node != OutOfBounds && node != Empty && _grid[node] == 0)
+                        {
+                            _grid[node] = shape.Color;
+                            shape.Nodes.Add(node);
+                            foreach (Direction direction in Enum.GetValues(typeof(Direction)))
+                                nodesToCheck.Enqueue(GetNode(node, direction));
+                        }
                     }
+
+                    if (shape.Nodes.Count < 2 || shape.Nodes.Count > 7)
+                    {
+                        failed = true;
+                        break;
+                    }
+                    shape.ShapeType =_shapeTypes[8 + shape.Nodes.Count];
+                    _shapes.Add(shape);
+                    shape.ShapeType.Count++;
                 }
             }
+            if (failed)
+            {
+                DevLog("Empty areas too small or too big.");
+                continue;
+            }
+
+            puzzleSuccess = true;
         }
 
+        if (!puzzleSuccess)
+        {
+            DevLog("Giving up :(");
+            return;
+        }
 
         // Random hints
         foreach (var shape in _shapes)
@@ -354,6 +402,27 @@ public class Shikaku : MonoBehaviour
     private Direction TurnLeft(Direction direction)
     {
         return (Direction)(((int)direction + 3) % 4);
+    }
+
+    private int GetNode(int node, Direction direction)
+    {
+        switch (direction)
+        {
+            case Direction.Up:
+                if (node / Width == 0) return OutOfBounds;
+                return _grid[node - Width];
+            case Direction.Right:
+                if (node % Width == Width - 1) return OutOfBounds;
+                return _grid[node + 1];
+            case Direction.Down:
+                if (node / Width == Height - 1) return OutOfBounds;
+                return _grid[node + Width];
+            case Direction.Left:
+                if (node % Width == 0) return OutOfBounds;
+                return _grid[node - 1];
+            default:
+                return OutOfBounds;
+        }
     }
 
     private bool Step(ref int node, Direction direction)
