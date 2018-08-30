@@ -119,7 +119,7 @@ public class Shikaku : MonoBehaviour
         // Try to generate puzzle
         var puzzleSuccess = false;
         var tryPuzzle = 0;
-        while (tryPuzzle < 20)
+        while (tryPuzzle < 50)
         {
             tryPuzzle++;
 
@@ -148,12 +148,19 @@ public class Shikaku : MonoBehaviour
 
                 DevLog((success ? "Succeeded" : "Failed") + " to add a " + shapeType.Name + " in " + tryShapeType.ToString() + " tries");
 
-                if (_shapes.Count == 5) break;
+                if (_shapes.Count == 6) break;
             }
 
             if (_shapes.Count < 4)
             {
                 DevLog("Could not fit 4 shapes.");
+                continue;
+            }
+
+            // Make sure we have some exotic shapes in the mix
+            if (_shapeTypes[ShapeH].Count + _shapeTypes[ShapePlus].Count + _shapeTypes[ShapeU].Count == 0)
+            {
+                DevLog("Only easy shapes.");
                 continue;
             }
 
@@ -233,6 +240,8 @@ public class Shikaku : MonoBehaviour
             DevLog("Giving up :(");
             return;
         }
+
+        DevLog("Generated puzzle in " + tryPuzzle.ToString() + " tries.");
 
         // Random hints
         foreach (var shape in _shapes)
