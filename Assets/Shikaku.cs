@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEngine;
 using KmHelper;
 using Rnd = UnityEngine.Random;
+using Assets;
 
 public class Shikaku : MonoBehaviour
 {
@@ -36,10 +37,12 @@ public class Shikaku : MonoBehaviour
     public KMBombInfo Bomb;
     public KMSelectable Module;
     public GameObject Squares;
-    public Material[] Colors;
+    public GameObject ActiveColor;
+    public Material[] Materials;
 
     //private int _moduleId;
     //private static int _moduleIdCounter = 1;
+    private int[] _puzzle = new int[36];
     private int[] _grid = new int[36];
     private ShapeType[] _shapeTypes = new ShapeType[]
     {
@@ -63,6 +66,8 @@ public class Shikaku : MonoBehaviour
     private KMSelectable[] _buttons = new KMSelectable[36];
     private TextMesh[] _hints = new TextMesh[36];
     private List<Shape> _shapes = new List<Shape>();
+    private List<int> _colors;
+    private int _activeShape;
 
     void Start()
     {
@@ -77,12 +82,36 @@ public class Shikaku : MonoBehaviour
             _hints[i].text = "";
         }
 
+        // Random colors
+        _colors = new List<int>() { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+        _colors = _colors.Shuffle();
+        _colors.Insert(0, 0);
+
         GeneratePuzzle();
+        string log = "";
+        for (var i = 0; i < _puzzle.Length; i++)
+            log += _puzzle[i].ToString() + (i % Width == Width - 1 ? "\n" : "");
+        Debug.Log(log);
         Refresh();
     }
 
     private void PressButton(int i)
     {
+        // Pressing a hint
+        foreach (var shape in _shapes)
+        {
+            if (shape.HintNode == i)
+            {
+                _activeShape = shape.Number;
+                ActiveColor.GetComponent<Renderer>().material = Materials[_colors[_grid[i]]];
+                return;
+            }
+        }
+
+        // Pressing another square
+        if (_activeShape == 0) return;
+        _grid[i] = _activeShape;
+        Refresh();
     }
 
     private void GeneratePuzzle()
@@ -94,9 +123,11 @@ public class Shikaku : MonoBehaviour
         {
             tryPuzzle++;
 
-            // Add some shapes. Try a bunch of times, doesn't really matter how many succeed, we'll check some conditions afterwards.
             _shapes = new List<Shape>();
-            _grid = new int[36];
+            _puzzle = new int[36];
+            for (var i = 0; i < _shapeTypes.Length; i++) _shapeTypes[i].Count = 0;
+
+            // Add some shapes. Try a bunch of times, doesn't really matter how many succeed, we'll check some conditions afterwards.
             var tryShape = 0;
             while (tryShape < 10)
             {
@@ -138,49 +169,63 @@ public class Shikaku : MonoBehaviour
                         extension.Node = cursorNode;
                         shape.Nodes.Add(cursorNode);
                     }
-                    foreach (var n in shape.Nodes) _grid[n] = shape.Color;
+                    foreach (var n in shape.Nodes) _puzzle[n] = shape.Number;
                 }
             }
 
             // Identify the empty areas that are left
             var failed = false;
-            for (var i = 0; i < _grid.Length; i++)
+            for (var i = 0; i < _puzzle.Length; i++)
             {
-                if (_grid[i] == 0)
+                if (_puzzle[i] == 0)
                 {
                     // Empty square found. Let's start a shape and see how big it is
-                    var shape = new Shape() { Color = _shapes.Count + 1 };
-                    var nodesToCheck = new Queue<int>();
-                    nodesToCheck.Enqueue(i);
-                    while (nodesToCheck.Count > 0)
+                    var shape = new Shape() { Number = _shapes.Count + 1 };
+                    var checkNeighbours = new Stack<int>();
+                    checkNeighbours.Push(i);
+                    while (checkNeighbours.Count > 0)
                     {
-                        var node = nodesToCheck.Dequeue();
-                        if (node != OutOfBounds && node != Empty && _grid[node] == 0)
+                        var node = checkNeighbours.Pop();
+                        _puzzle[node] = shape.Number;
+                        shape.Nodes.Add(node);
+                        foreach (Direction direction in Enum.GetValues(typeof(Direction)))
                         {
-                            _grid[node] = shape.Color;
-                            shape.Nodes.Add(node);
-                            foreach (Direction direction in Enum.GetValues(typeof(Direction)))
-                                nodesToCheck.Enqueue(GetNode(node, direction));
+                            var newNode = GetNode(node, direction);
+                            if (checkNeighbours.Contains(newNode)) continue;
+                            if (shape.Nodes.Contains(newNode)) continue;
+                            if (newNode == OutOfBounds) continue;
+                            if (_puzzle[newNode] != Empty) continue;
+                            checkNeighbours.Push(newNode);
                         }
                     }
 
                     if (shape.Nodes.Count < 2 || shape.Nodes.Count > 7)
                     {
+                        DevLog("Empty areas too small or too big.");
                         failed = true;
                         break;
                     }
                     shape.ShapeType =_shapeTypes[8 + shape.Nodes.Count];
                     _shapes.Add(shape);
+                    if (_shapes.Count > 9)
+                    {
+                        DevLog("Too many shapes");
+                        failed = true;
+                        break;
+                    }
                     shape.ShapeType.Count++;
+                    if (shape.ShapeType.Count > shape.ShapeType.MaxCount)
+                    {
+                        DevLog("Too many shapes of size " + shape.ShapeType.Name);
+                        failed = true;
+                        break;
+                    }
                 }
             }
-            if (failed)
-            {
-                DevLog("Empty areas too small or too big.");
-                continue;
-            }
+            if (failed) continue;
 
             puzzleSuccess = true;
+            break;
         }
 
         if (!puzzleSuccess)
@@ -194,22 +239,23 @@ public class Shikaku : MonoBehaviour
         {
             shape.HintNode = shape.Nodes[Rnd.Range(0, shape.Nodes.Count)];
             _hints[shape.HintNode].text = shape.ShapeType.HintChars[(int)shape.Direction].ToString();
+            _grid[shape.HintNode] = shape.Number;
         }
     }
 
-    private bool TryToAddShape(ShapeType shapeType, int color)
+    private bool TryToAddShape(ShapeType shapeType, int number)
     {
         // Random starting node
         var shape = new Shape()
         {
             ShapeType = shapeType,
-            Color = color,
+            Number = number,
             Direction = RandomDirection()
         };
 
         int startNode;
-        do startNode = Rnd.Range(0, _grid.Length);
-        while (_grid[startNode] != Empty);
+        do startNode = Rnd.Range(0, _puzzle.Length);
+        while (_puzzle[startNode] != Empty);
         var cursorNode = startNode;
         shape.Nodes.Add(cursorNode);
         var direction = shape.Direction;
@@ -376,7 +422,7 @@ public class Shikaku : MonoBehaviour
                 break;
         }
 
-        foreach (var node in shape.Nodes) _grid[node] = shape.Color;
+        foreach (var node in shape.Nodes) _puzzle[node] = shape.Number;
         _shapes.Add(shape);
         shape.ShapeType.Count++;
 
@@ -410,16 +456,16 @@ public class Shikaku : MonoBehaviour
         {
             case Direction.Up:
                 if (node / Width == 0) return OutOfBounds;
-                return _grid[node - Width];
+                return node - Width;
             case Direction.Right:
                 if (node % Width == Width - 1) return OutOfBounds;
-                return _grid[node + 1];
+                return node + 1;
             case Direction.Down:
                 if (node / Width == Height - 1) return OutOfBounds;
-                return _grid[node + Width];
+                return node + Width;
             case Direction.Left:
                 if (node % Width == 0) return OutOfBounds;
-                return _grid[node - 1];
+                return node - 1;
             default:
                 return OutOfBounds;
         }
@@ -450,7 +496,7 @@ public class Shikaku : MonoBehaviour
                 return false;
         }
 
-        if (_grid[newNode] != Empty)
+        if (_puzzle[newNode] != Empty)
             return false;
 
         node = newNode;
@@ -459,14 +505,10 @@ public class Shikaku : MonoBehaviour
 
     private void Refresh()
     {
-        for (var i = 0; i < _grid.Length; i++)
+        for (var i = 0; i < _puzzle.Length; i++)
         {
-            _buttons[i].GetComponent<Renderer>().material = Colors[_grid[i]];
+            _buttons[i].GetComponent<Renderer>().material = Materials[_colors[_grid[i]]];
         }
-        string log = "";
-        for (var i = 0; i < _grid.Length; i++)
-            log += _grid[i].ToString() + (i % Width == Width - 1 ? "\n" : "");
-        Debug.Log(log);
     }
 
     private void DevLog(string message)
@@ -496,7 +538,7 @@ public class Shikaku : MonoBehaviour
         public List<int> Nodes { get; set; }
         public int HintNode { get; set; }
         public Direction Direction { get; set; }
-        public int Color { get; set; }
+        public int Number { get; set; }
         // List of possible extensions, they can be visited in a later stage to fill the gaps
         public List<Extension> Extensions { get; set; }
 
