@@ -42,6 +42,7 @@ public class Shikaku : MonoBehaviour
 
     //private int _moduleId;
     //private static int _moduleIdCounter = 1;
+    private bool _isSolved;
     private int[] _puzzle = new int[36];
     private int[] _grid = new int[36];
     private ShapeType[] _shapeTypes = new ShapeType[]
@@ -56,18 +57,19 @@ public class Shikaku : MonoBehaviour
         new ShapeType() { Shape = ShapeSmallZ, Name = "Small Z", MinSize = 4, HintChars = "UVUV", MaxCount = 1 },
         new ShapeType() { Shape = ShapeLargeS, Name = "Large S", MinSize = 5, HintChars = "WXWX", MaxCount = 1 },
         new ShapeType() { Shape = ShapeLargeZ, Name = "Large Z", MinSize = 5, HintChars = "YZYZ", MaxCount = 1 },
-        new ShapeType() { Shape = Shape2, Name = "2", MinSize = 2, HintChars = "2222", MaxCount = 3 },
-        new ShapeType() { Shape = Shape3, Name = "3", MinSize = 3, HintChars = "3333", MaxCount = 3 },
-        new ShapeType() { Shape = Shape4, Name = "4", MinSize = 4, HintChars = "4444", MaxCount = 2 },
-        new ShapeType() { Shape = Shape5, Name = "5", MinSize = 5, HintChars = "5555", MaxCount = 2 },
-        new ShapeType() { Shape = Shape6, Name = "6", MinSize = 6, HintChars = "6666", MaxCount = 1 },
-        new ShapeType() { Shape = Shape7, Name = "7", MinSize = 7, HintChars = "7777", MaxCount = 1 },
+        new ShapeType() { Shape = Shape2, IsNumber = true, Name = "2", MinSize = 2, HintChars = "2222", MaxCount = 3 },
+        new ShapeType() { Shape = Shape3, IsNumber = true, Name = "3", MinSize = 3, HintChars = "3333", MaxCount = 3 },
+        new ShapeType() { Shape = Shape4, IsNumber = true, Name = "4", MinSize = 4, HintChars = "4444", MaxCount = 2 },
+        new ShapeType() { Shape = Shape5, IsNumber = true, Name = "5", MinSize = 5, HintChars = "5555", MaxCount = 2 },
+        new ShapeType() { Shape = Shape6, IsNumber = true, Name = "6", MinSize = 6, HintChars = "6666", MaxCount = 1 },
+        new ShapeType() { Shape = Shape7, IsNumber = true, Name = "7", MinSize = 7, HintChars = "7777", MaxCount = 1 },
     };
     private KMSelectable[] _buttons = new KMSelectable[36];
     private TextMesh[] _hints = new TextMesh[36];
     private List<Shape> _shapes = new List<Shape>();
     private List<int> _colors;
     private int _activeShape;
+    private string _precedence = "GWEKTYAIOUSDMQHJRLBXCVZNF";
 
     void Start()
     {
@@ -83,8 +85,7 @@ public class Shikaku : MonoBehaviour
         }
 
         // Random colors
-        _colors = new List<int>() { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-        _colors = _colors.Shuffle();
+        _colors = (new List<int>() { 1, 2, 3, 4, 5, 6, 7, 8, 9 }).Shuffle();
         _colors.Insert(0, 0);
 
         GeneratePuzzle();
@@ -102,8 +103,17 @@ public class Shikaku : MonoBehaviour
         {
             if (shape.HintNode == i)
             {
-                _activeShape = shape.Number;
-                ActiveColor.GetComponent<Renderer>().material = Materials[_colors[_grid[i]]];
+                // When it's already the active shape
+                if (shape.Number == _activeShape && !shape.ShapeType.IsNumber)
+                {
+                    shape.CurrentHintCorrect = !shape.CurrentHintCorrect;
+                    _hints[shape.HintNode].text = shape.CurrentHintCorrect ? shape.HintChar.ToString() : shape.FakeHintChar.ToString();
+                }
+                else
+                {
+                    _activeShape = shape.Number;
+                    ActiveColor.GetComponent<Renderer>().material = Materials[_colors[_grid[i]]];
+                }
                 return;
             }
         }
@@ -111,7 +121,14 @@ public class Shikaku : MonoBehaviour
         // Pressing another square
         if (_activeShape == 0) return;
         _grid[i] = _activeShape;
+
         Refresh();
+        _isSolved = CheckIfSolved();
+        if (_isSolved)
+        {
+            Debug.Log("Solved!");
+        }
+
     }
 
     private void GeneratePuzzle()
@@ -212,7 +229,7 @@ public class Shikaku : MonoBehaviour
                         failed = true;
                         break;
                     }
-                    shape.ShapeType =_shapeTypes[8 + shape.Nodes.Count];
+                    shape.ShapeType = _shapeTypes[8 + shape.Nodes.Count];
                     _shapes.Add(shape);
                     if (_shapes.Count > 9)
                     {
@@ -229,8 +246,13 @@ public class Shikaku : MonoBehaviour
                     }
                 }
             }
-            if (failed) continue;
+            if (_shapeTypes[Shape2].Count + _shapeTypes[Shape3].Count + _shapeTypes[Shape4].Count + _shapeTypes[Shape5].Count + _shapeTypes[Shape6].Count + _shapeTypes[Shape7].Count == 0)
+            {
+                DevLog("No number shapes");
+                failed = true;
+            }
 
+            if (failed) continue;
             puzzleSuccess = true;
             break;
         }
@@ -243,11 +265,53 @@ public class Shikaku : MonoBehaviour
 
         DevLog("Generated puzzle in " + tryPuzzle.ToString() + " tries.");
 
-        // Random hints
+        // Hints
+        var sum = _shapeTypes.Select(shape => shape.IsNumber ? shape.Count * shape.MinSize : 0).Sum();
+        sum = (sum - 1) % 4 + 1;
         foreach (var shape in _shapes)
         {
+            // Random hint location within shape
             shape.HintNode = shape.Nodes[Rnd.Range(0, shape.Nodes.Count)];
-            _hints[shape.HintNode].text = shape.ShapeType.HintChars[(int)shape.Direction].ToString();
+            shape.HintChar = shape.ShapeType.HintChars[(int)shape.Direction];
+
+            // Number shapes only have one hint
+            if (shape.ShapeType.IsNumber)
+            {
+                _hints[shape.HintNode].text = shape.HintChar.ToString();
+            }
+
+            // Symbol shapes have two hints that toggle
+            else
+            {
+                var hint = _precedence.IndexOf(shape.HintChar);
+                int fakeHint = 0;
+                var numbers = Enumerable.Range(0, 25).ToList();
+
+                switch (sum)
+                {
+                    case 1:
+                        if (hint / 5 == 4) fakeHint = hint - 5;
+                        else fakeHint = numbers.Where(n => n / 5 > hint / 5 && n != hint + 5).PickRandom();
+                        break;
+                    case 2:
+                        if (hint % 5 == 0) fakeHint = hint + 1;
+                        else fakeHint = numbers.Where(n => n % 5 < hint % 5 && n != hint - 1).PickRandom();
+                        break;
+                    case 3:
+                        if (hint / 5 == 0) fakeHint = hint + 5;
+                        else fakeHint = numbers.Where(n => n / 5 < hint / 5 && n != hint - 5).PickRandom();
+                        break;
+                    case 4:
+                        if (hint % 5 == 4) fakeHint = hint - 1;
+                        else fakeHint = numbers.Where(n => n % 5 > hint % 5 && n != hint + 1).PickRandom();
+                        break;
+                }
+                shape.FakeHintChar = _precedence[fakeHint];
+                shape.CurrentHintCorrect = Rnd.Range(0, 2) == 0;
+                _hints[shape.HintNode].text = shape.CurrentHintCorrect ? shape.HintChar.ToString() : shape.FakeHintChar.ToString();
+            }
+
+            // Color the hint nodes
             _grid[shape.HintNode] = shape.Number;
         }
     }
@@ -459,22 +523,22 @@ public class Shikaku : MonoBehaviour
         return (Direction)(((int)direction + 3) % 4);
     }
 
-    private int GetNode(int node, Direction direction)
+    private int GetNode(int node, Direction direction, int numSteps = 1)
     {
         switch (direction)
         {
             case Direction.Up:
-                if (node / Width == 0) return OutOfBounds;
-                return node - Width;
+                if (node / Height == 0) return OutOfBounds;
+                return node - (Height * numSteps);
             case Direction.Right:
                 if (node % Width == Width - 1) return OutOfBounds;
-                return node + 1;
+                return node + numSteps;
             case Direction.Down:
-                if (node / Width == Height - 1) return OutOfBounds;
-                return node + Width;
+                if (node / Height == Height - 1) return OutOfBounds;
+                return node + (Height * numSteps);
             case Direction.Left:
                 if (node % Width == 0) return OutOfBounds;
-                return node - 1;
+                return node - numSteps;
             default:
                 return OutOfBounds;
         }
@@ -486,16 +550,16 @@ public class Shikaku : MonoBehaviour
         switch (direction)
         {
             case Direction.Up:
-                if (node / Width == 0) return false;
-                newNode = node - Width;
+                if (node / Height == 0) return false;
+                newNode = node - Height;
                 break;
             case Direction.Right:
                 if (node % Width == Width - 1) return false;
                 newNode = node + 1;
                 break;
             case Direction.Down:
-                if (node / Width == Height - 1) return false;
-                newNode = node + Width;
+                if (node / Height == Height - 1) return false;
+                newNode = node + Height;
                 break;
             case Direction.Left:
                 if (node % Width == 0) return false;
@@ -514,9 +578,85 @@ public class Shikaku : MonoBehaviour
 
     private void Refresh()
     {
-        for (var i = 0; i < _puzzle.Length; i++)
+        for (var i = 0; i < _grid.Length; i++)
         {
             _buttons[i].GetComponent<Renderer>().material = Materials[_colors[_grid[i]]];
+        }
+    }
+
+
+    private bool CheckIfSolved()
+    {
+        int[] overlay = new int[36];
+        int node;
+        foreach (var shape in _shapes)
+        {
+            switch (shape.ShapeType.Shape)
+            {
+                case ShapeLine:
+                    break;
+                case ShapeL:
+                    break;
+                case ShapeT:
+                    node = FindStartNode(_grid, shape.Number, Turn180(shape.Direction));
+                    if (node == OutOfBounds) return false;
+                    break;
+                case ShapeU:
+                    break;
+                case ShapePlus:
+                    break;
+                case ShapeH:
+                    break;
+                case ShapeSmallS:
+                    break;
+                case ShapeSmallZ:
+                    break;
+                case ShapeLargeS:
+                    break;
+                case ShapeLargeZ:
+                    break;
+                case Shape2:
+                    break;
+                case Shape3:
+                    break;
+                case Shape4:
+                    break;
+                case Shape5:
+                    break;
+                case Shape6:
+                    break;
+                case Shape7:
+                    break;
+            }
+        }
+        return true;
+    }
+
+    private int FindStartNode(int[] grid, int number, Direction scanFrom)
+    {
+        var node = 0;
+        var scanNode = 0;
+        if (scanFrom == Direction.Right) node = Width - 1;
+        else if (scanFrom == Direction.Down) node = Width * Height - 1;
+        else if (scanFrom == Direction.Left) node = Width * (Height - 1);
+
+        while (true)
+        {
+            // Check current node
+            if (_grid[node] == number) return node;
+
+            // Step in scan direction
+            scanNode = GetNode(node, TurnRight(scanFrom));
+
+            // Go to next line if needed
+            if (scanNode == OutOfBounds)
+            {
+                // CR
+                scanNode = GetNode(node, TurnLeft(scanFrom), 5);
+
+                // LF
+                scanNode = GetNode(scanNode, Turn180(scanFrom));
+            }
         }
     }
 
@@ -528,6 +668,7 @@ public class Shikaku : MonoBehaviour
     class ShapeType
     {
         public int Shape { get; set; }
+        public bool IsNumber { get; set; }
         public string Name { get; set; }
         public int MinSize { get; set; }
         public string HintChars { get; set; }
@@ -546,8 +687,12 @@ public class Shikaku : MonoBehaviour
         public ShapeType ShapeType { get; set; }
         public List<int> Nodes { get; set; }
         public int HintNode { get; set; }
+        public char HintChar { get; set; }
+        public char FakeHintChar { get; set; }
+        public bool CurrentHintCorrect { get; set; }
         public Direction Direction { get; set; }
         public int Number { get; set; }
+
         // List of possible extensions, they can be visited in a later stage to fill the gaps
         public List<Extension> Extensions { get; set; }
 
