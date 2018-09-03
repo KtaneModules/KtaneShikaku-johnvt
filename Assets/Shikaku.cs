@@ -3,28 +3,16 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using KmHelper;
 using Rnd = UnityEngine.Random;
 using Assets;
 
 public class Shikaku : MonoBehaviour
 {
-    const int ShapeLine = 0;
-    const int ShapeL = 1;
-    const int ShapeT = 2;
-    const int ShapeU = 3;
-    const int ShapePlus = 4;
-    const int ShapeH = 5;
-    const int ShapeSmallS = 6;
-    const int ShapeSmallZ = 7;
-    const int ShapeLargeS = 8;
-    const int ShapeLargeZ = 9;
-    const int Shape2 = 10;
-    const int Shape3 = 11;
-    const int Shape4 = 12;
-    const int Shape5 = 13;
-    const int Shape6 = 14;
-    const int Shape7 = 15;
+    // Shape
+    enum S { Line, L, T, U, Plus, H, SmallS, SmallZ, LargeS, LargeZ, _2, _3, _4, _5, _6, _7 };
+
+    // Direction
+    enum D { Up, Right, Down, Left };
 
     const int Width = 6;
     const int Height = 6;
@@ -32,48 +20,46 @@ public class Shikaku : MonoBehaviour
     const int OutOfBounds = -1;
     const int Empty = 0;
 
-    enum Direction { Up, Right, Down, Left };
-
     public KMBombInfo Bomb;
-    public KMSelectable Module;
+    public KMBombModule Module;
     public GameObject Squares;
     public GameObject ActiveColor;
     public Material[] Materials;
 
-    //private int _moduleId;
-    //private static int _moduleIdCounter = 1;
+    private int _moduleId;
+    private static int _moduleIdCounter = 1;
     private bool _isSolved;
     private int[] _puzzle = new int[36];
     private int[] _grid = new int[36];
-    private ShapeType[] _shapeTypes = new ShapeType[]
+    private Dictionary<S, ShapeDef> _shapeDefs = new Dictionary<S, ShapeDef>()
     {
-        new ShapeType() { Shape = ShapeLine, Name = "Line", MinSize = 2, HintChars = "ABAB", MaxCount = 2 },
-        new ShapeType() { Shape = ShapeL, Name = "L", MinSize = 3, HintChars = "CDEF", MaxCount = 2 },
-        new ShapeType() { Shape = ShapeT, Name = "T", MinSize = 4, HintChars = "GHIJ", MaxCount = 2 },
-        new ShapeType() { Shape = ShapeU, Name = "U", MinSize = 5, HintChars = "KLMN", MaxCount = 2 },
-        new ShapeType() { Shape = ShapePlus, Name = "Plus", MinSize = 5, HintChars = "OOOO", MaxCount = 1 },
-        new ShapeType() { Shape = ShapeH, Name = "H", MinSize = 7, HintChars = "QRQR", MaxCount = 1 },
-        new ShapeType() { Shape = ShapeSmallS, Name = "Small S", MinSize = 4, HintChars = "STST", MaxCount = 1 },
-        new ShapeType() { Shape = ShapeSmallZ, Name = "Small Z", MinSize = 4, HintChars = "UVUV", MaxCount = 1 },
-        new ShapeType() { Shape = ShapeLargeS, Name = "Large S", MinSize = 5, HintChars = "WXWX", MaxCount = 1 },
-        new ShapeType() { Shape = ShapeLargeZ, Name = "Large Z", MinSize = 5, HintChars = "YZYZ", MaxCount = 1 },
-        new ShapeType() { Shape = Shape2, IsNumber = true, Name = "2", MinSize = 2, HintChars = "2222", MaxCount = 3 },
-        new ShapeType() { Shape = Shape3, IsNumber = true, Name = "3", MinSize = 3, HintChars = "3333", MaxCount = 3 },
-        new ShapeType() { Shape = Shape4, IsNumber = true, Name = "4", MinSize = 4, HintChars = "4444", MaxCount = 2 },
-        new ShapeType() { Shape = Shape5, IsNumber = true, Name = "5", MinSize = 5, HintChars = "5555", MaxCount = 2 },
-        new ShapeType() { Shape = Shape6, IsNumber = true, Name = "6", MinSize = 6, HintChars = "6666", MaxCount = 1 },
-        new ShapeType() { Shape = Shape7, IsNumber = true, Name = "7", MinSize = 7, HintChars = "7777", MaxCount = 1 },
+        { S.Line, new ShapeDef() { Shape = S.Line, Name = "Line", MinSize = 2, HintChars = "ABAB", MaxCount = 2 } },
+        { S.L, new ShapeDef() { Shape = S.L, Name = "L", MinSize = 3, HintChars = "CDEF", MaxCount = 2 } },
+        { S.T, new ShapeDef() { Shape = S.T, Name = "T", MinSize = 4, HintChars = "GHIJ", MaxCount = 2 } },
+        { S.U, new ShapeDef() { Shape = S.U, Name = "U", MinSize = 5, HintChars = "KLMN", MaxCount = 2 } },
+        { S.Plus, new ShapeDef() { Shape = S.Plus, Name = "Plus", MinSize = 5, HintChars = "OOOO", MaxCount = 1 } },
+        { S.H, new ShapeDef() { Shape = S.H, Name = "H", MinSize = 7, HintChars = "QRQR", MaxCount = 1 } },
+        { S.SmallS, new ShapeDef() { Shape = S.SmallS, Name = "Small S", MinSize = 4, HintChars = "STST", MaxCount = 1 } },
+        { S.SmallZ, new ShapeDef() { Shape = S.SmallZ, Name = "Small Z", MinSize = 4, HintChars = "UVUV", MaxCount = 1 } },
+        { S.LargeS, new ShapeDef() { Shape = S.LargeS, Name = "Large S", MinSize = 5, HintChars = "WXWX", MaxCount = 1 } },
+        { S.LargeZ, new ShapeDef() { Shape = S.LargeZ, Name = "Large Z", MinSize = 5, HintChars = "YZYZ", MaxCount = 1 } },
+        { S._2, new ShapeDef() { Shape = S._2, IsNumber = true, Name = "2", MinSize = 2, HintChars = "2222", MaxCount = 3 } },
+        { S._3, new ShapeDef() { Shape = S._3, IsNumber = true, Name = "3", MinSize = 3, HintChars = "3333", MaxCount = 3 } },
+        { S._4, new ShapeDef() { Shape = S._4, IsNumber = true, Name = "4", MinSize = 4, HintChars = "4444", MaxCount = 2 } },
+        { S._5, new ShapeDef() { Shape = S._5, IsNumber = true, Name = "5", MinSize = 5, HintChars = "5555", MaxCount = 2 } },
+        { S._6, new ShapeDef() { Shape = S._6, IsNumber = true, Name = "6", MinSize = 6, HintChars = "6666", MaxCount = 1 } },
+        { S._7, new ShapeDef() { Shape = S._7, IsNumber = true, Name = "7", MinSize = 7, HintChars = "7777", MaxCount = 1 } }
     };
     private KMSelectable[] _buttons = new KMSelectable[36];
     private TextMesh[] _hints = new TextMesh[36];
     private List<Shape> _shapes = new List<Shape>();
     private List<int> _colors;
     private int _activeShape;
-    private string _precedence = "GWEKTYAIOUSDMQHJRLBXCVZNF";
+    private string _manual = "GWEKTYAIOUSDMQHJRLBXCVZNF";
 
     void Start()
     {
-        //_moduleId = _moduleIdCounter++;
+        _moduleId = _moduleIdCounter++;
 
         for (int i = 0; i < 36; i++)
         {
@@ -89,15 +75,32 @@ public class Shikaku : MonoBehaviour
         _colors.Insert(0, 0);
 
         GeneratePuzzle();
-        string log = "";
-        for (var i = 0; i < _puzzle.Length; i++)
-            log += _puzzle[i].ToString() + (i % Width == Width - 1 ? "\n" : "");
-        Debug.Log(log);
+
+        string msg;
+        for (var i = 0; i < 6; i++)
+        {
+            msg = "";
+            for (var j = 0; j < 6; j++) msg += _puzzle[i * 6 + j];
+            Debug.LogFormat("[Shikaku #{0}] {1}", _moduleId, msg);
+        }
+
+        msg = "";
+        foreach (var shape in _shapes)
+        {
+            msg += shape.ShapeType.Name + " in " + shape.HintNode + "\n";
+        }
+        DevLog(msg);
+
         Refresh();
     }
 
     private void PressButton(int i)
     {
+        if (_isSolved) return;
+
+        GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, transform);
+        GetComponent<KMSelectable>().AddInteractionPunch(.05f);
+
         // Pressing a hint
         foreach (var shape in _shapes)
         {
@@ -126,9 +129,9 @@ public class Shikaku : MonoBehaviour
         _isSolved = CheckIfSolved();
         if (_isSolved)
         {
-            Debug.Log("Solved!");
+            Module.HandlePass();
+            Debug.LogFormat("[Shikaku #{0}] Solved!", _moduleId);
         }
-
     }
 
     private void GeneratePuzzle()
@@ -136,13 +139,13 @@ public class Shikaku : MonoBehaviour
         // Try to generate puzzle
         var puzzleSuccess = false;
         var tryPuzzle = 0;
-        while (tryPuzzle < 50)
+        while (true)
         {
             tryPuzzle++;
 
             _shapes = new List<Shape>();
             _puzzle = new int[36];
-            for (var i = 0; i < _shapeTypes.Length; i++) _shapeTypes[i].Count = 0;
+            foreach (var shapeDef in _shapeDefs) shapeDef.Value.Count = 0;
 
             // Add some shapes. Try a bunch of times, doesn't really matter how many succeed, we'll check some conditions afterwards.
             var tryShape = 0;
@@ -150,20 +153,20 @@ public class Shikaku : MonoBehaviour
             {
                 tryShape++;
 
-                ShapeType shapeType;
-                do shapeType = _shapeTypes[Rnd.Range(0, ShapeLargeZ + 1)];
-                while (shapeType.Count == shapeType.MaxCount);
+                ShapeDef ShapeType;
+                do ShapeType = _shapeDefs.ElementAt(Rnd.Range(0, 10)).Value;
+                while (ShapeType.Count == ShapeType.MaxCount);
                 var success = false;
 
                 var tryShapeType = 0;
                 while (tryShapeType < 10)
                 {
                     tryShapeType++;
-                    success = TryToAddShape(shapeType, _shapes.Count + 1);
+                    success = TryToAddShape(ShapeType, _shapes.Count + 1);
                     if (success) break;
                 }
 
-                DevLog((success ? "Succeeded" : "Failed") + " to add a " + shapeType.Name + " in " + tryShapeType.ToString() + " tries");
+                DevLog((success ? "Succeeded" : "Failed") + " to add a " + ShapeType.Name + " in " + tryShapeType.ToString() + " tries");
 
                 if (_shapes.Count == 6) break;
             }
@@ -175,7 +178,7 @@ public class Shikaku : MonoBehaviour
             }
 
             // Make sure we have some exotic shapes in the mix
-            if (_shapeTypes[ShapeH].Count + _shapeTypes[ShapePlus].Count + _shapeTypes[ShapeU].Count == 0)
+            if (_shapeDefs[S.H].Count + _shapeDefs[S.Plus].Count + _shapeDefs[S.U].Count == 0)
             {
                 DevLog("Only easy shapes.");
                 continue;
@@ -203,25 +206,9 @@ public class Shikaku : MonoBehaviour
             {
                 if (_puzzle[i] == 0)
                 {
-                    // Empty square found. Let's start a shape and see how big it is
-                    var shape = new Shape() { Number = _shapes.Count + 1 };
-                    var checkNeighbours = new Stack<int>();
-                    checkNeighbours.Push(i);
-                    while (checkNeighbours.Count > 0)
-                    {
-                        var node = checkNeighbours.Pop();
-                        _puzzle[node] = shape.Number;
-                        shape.Nodes.Add(node);
-                        foreach (Direction direction in Enum.GetValues(typeof(Direction)))
-                        {
-                            var newNode = GetNode(node, direction);
-                            if (checkNeighbours.Contains(newNode)) continue;
-                            if (shape.Nodes.Contains(newNode)) continue;
-                            if (newNode == OutOfBounds) continue;
-                            if (_puzzle[newNode] != Empty) continue;
-                            checkNeighbours.Push(newNode);
-                        }
-                    }
+                    // Empty square found, let's see how big it is
+                    var shape = GetConnectedArea(_puzzle, i);
+                    shape.Number = _shapes.Count + 1;
 
                     if (shape.Nodes.Count < 2 || shape.Nodes.Count > 7)
                     {
@@ -229,7 +216,7 @@ public class Shikaku : MonoBehaviour
                         failed = true;
                         break;
                     }
-                    shape.ShapeType = _shapeTypes[8 + shape.Nodes.Count];
+                    shape.ShapeType = _shapeDefs.ElementAt(8 + shape.Nodes.Count).Value;
                     _shapes.Add(shape);
                     if (_shapes.Count > 9)
                     {
@@ -244,9 +231,11 @@ public class Shikaku : MonoBehaviour
                         failed = true;
                         break;
                     }
+
+                    foreach (var node in shape.Nodes) _puzzle[node] = shape.Number;
                 }
             }
-            if (_shapeTypes[Shape2].Count + _shapeTypes[Shape3].Count + _shapeTypes[Shape4].Count + _shapeTypes[Shape5].Count + _shapeTypes[Shape6].Count + _shapeTypes[Shape7].Count == 0)
+            if (_shapeDefs[S._2].Count + _shapeDefs[S._3].Count + _shapeDefs[S._4].Count + _shapeDefs[S._5].Count + _shapeDefs[S._6].Count + _shapeDefs[S._7].Count == 0)
             {
                 DevLog("No number shapes");
                 failed = true;
@@ -266,7 +255,7 @@ public class Shikaku : MonoBehaviour
         DevLog("Generated puzzle in " + tryPuzzle.ToString() + " tries.");
 
         // Hints
-        var sum = _shapeTypes.Select(shape => shape.IsNumber ? shape.Count * shape.MinSize : 0).Sum();
+        var sum = _shapeDefs.Select(shape => shape.Value.IsNumber ? shape.Value.Count * shape.Value.MinSize : 0).Sum();
         sum = (sum - 1) % 4 + 1;
         foreach (var shape in _shapes)
         {
@@ -283,7 +272,7 @@ public class Shikaku : MonoBehaviour
             // Symbol shapes have two hints that toggle
             else
             {
-                var hint = _precedence.IndexOf(shape.HintChar);
+                var hint = _manual.IndexOf(shape.HintChar);
                 int fakeHint = 0;
                 var numbers = Enumerable.Range(0, 25).ToList();
 
@@ -306,7 +295,7 @@ public class Shikaku : MonoBehaviour
                         else fakeHint = numbers.Where(n => n % 5 > hint % 5 && n != hint + 1).PickRandom();
                         break;
                 }
-                shape.FakeHintChar = _precedence[fakeHint];
+                shape.FakeHintChar = _manual[fakeHint];
                 shape.CurrentHintCorrect = Rnd.Range(0, 2) == 0;
                 _hints[shape.HintNode].text = shape.CurrentHintCorrect ? shape.HintChar.ToString() : shape.FakeHintChar.ToString();
             }
@@ -316,12 +305,35 @@ public class Shikaku : MonoBehaviour
         }
     }
 
-    private bool TryToAddShape(ShapeType shapeType, int number)
+    private Shape GetConnectedArea(int[] grid, int startNode)
+    {
+        var shape = new Shape();
+        var checkNeighbours = new Stack<int>();
+        checkNeighbours.Push(startNode);
+        while (checkNeighbours.Count > 0)
+        {
+            var node = checkNeighbours.Pop();
+            shape.Nodes.Add(node);
+            foreach (D direction in Enum.GetValues(typeof(D)))
+            {
+                var newNode = GetNode(node, direction);
+                if (checkNeighbours.Contains(newNode)) continue;
+                if (shape.Nodes.Contains(newNode)) continue;
+                if (newNode == OutOfBounds) continue;
+                if (grid[newNode] != grid[startNode]) continue;
+                checkNeighbours.Push(newNode);
+            }
+        }
+
+        return shape;
+    }
+
+    private bool TryToAddShape(ShapeDef shapeDef, int number)
     {
         // Random starting node
         var shape = new Shape()
         {
-            ShapeType = shapeType,
+            ShapeType = shapeDef,
             Number = number,
             Direction = RandomDirection()
         };
@@ -335,29 +347,29 @@ public class Shikaku : MonoBehaviour
         var numNodes = 0;
 
         // Construct basic shape
-        switch (shapeType.Shape)
+        switch (shapeDef.Shape)
         {
-            case ShapeLine:
+            case S.Line:
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
-            case ShapeL:
+            case S.L:
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 direction = Turn180(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
-                direction = TurnLeft(direction);
+                direction = TurnCcw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
-            case ShapeT:
+            case S.T:
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
-                direction = TurnLeft(direction);
+                direction = TurnCcw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
@@ -367,12 +379,12 @@ public class Shikaku : MonoBehaviour
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
-            case ShapeU:
+            case S.U:
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 direction = Turn180(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
-                direction = TurnLeft(direction);
+                direction = TurnCcw(direction);
                 var maxNodes = Rnd.Range(3, Width);
                 numNodes = 1;
                 while (Step(ref cursorNode, direction))
@@ -382,23 +394,23 @@ public class Shikaku : MonoBehaviour
                     if (numNodes == maxNodes) break;
                 }
                 if (numNodes < 3) return false;
-                direction = TurnLeft(direction);
+                direction = TurnCcw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
-            case ShapePlus:
+            case S.Plus:
                 for (var i = 0; i < 4; i++)
                 {
                     if (!Step(ref cursorNode, direction)) return false;
                     shape.Nodes.Add(cursorNode);
                     shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                     Step(ref cursorNode, Turn180(direction));
-                    direction = TurnRight(direction);
+                    direction = TurnCw(direction);
                 }
                 break;
-            case ShapeH:
-                direction = TurnRight(direction);
+            case S.H:
+                direction = TurnCw(direction);
                 maxNodes = Rnd.Range(3, 6);
                 numNodes = 1;
                 while (Step(ref cursorNode, direction))
@@ -408,7 +420,7 @@ public class Shikaku : MonoBehaviour
                     if (numNodes == maxNodes) break;
                 }
                 if (numNodes < 3) return false;
-                direction = TurnRight(direction);
+                direction = TurnCw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
@@ -427,38 +439,38 @@ public class Shikaku : MonoBehaviour
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
-            case ShapeSmallS:
-                direction = TurnRight(direction);
+            case S.SmallS:
+                direction = TurnCw(direction);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
-                direction = TurnLeft(direction);
+                direction = TurnCcw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
-                direction = TurnRight(direction);
+                direction = TurnCw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
-            case ShapeSmallZ:
-                direction = TurnRight(direction);
+            case S.SmallZ:
+                direction = TurnCw(direction);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
-                direction = TurnRight(direction);
+                direction = TurnCw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
-                direction = TurnLeft(direction);
+                direction = TurnCcw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
-            case ShapeLargeS:
-                direction = TurnRight(direction);
+            case S.LargeS:
+                direction = TurnCw(direction);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
-                direction = TurnLeft(direction);
+                direction = TurnCcw(direction);
                 maxNodes = Rnd.Range(3, 6);
                 numNodes = 1;
                 while (Step(ref cursorNode, direction))
@@ -468,17 +480,17 @@ public class Shikaku : MonoBehaviour
                     if (numNodes == maxNodes) break;
                 }
                 if (numNodes < 3) return false;
-                direction = TurnRight(direction);
+                direction = TurnCw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
                 break;
-            case ShapeLargeZ:
-                direction = TurnRight(direction);
+            case S.LargeZ:
+                direction = TurnCw(direction);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = Turn180(direction) });
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
-                direction = TurnRight(direction);
+                direction = TurnCw(direction);
                 maxNodes = Rnd.Range(3, 6);
                 numNodes = 1;
                 while (Step(ref cursorNode, direction))
@@ -488,7 +500,7 @@ public class Shikaku : MonoBehaviour
                     if (numNodes == maxNodes) break;
                 }
                 if (numNodes < 3) return false;
-                direction = TurnLeft(direction);
+                direction = TurnCcw(direction);
                 if (!Step(ref cursorNode, direction)) return false;
                 shape.Nodes.Add(cursorNode);
                 shape.Extensions.Add(new Extension() { Node = cursorNode, Direction = direction });
@@ -502,66 +514,73 @@ public class Shikaku : MonoBehaviour
         return true;
     }
 
-    private Direction RandomDirection()
+    private D RandomDirection()
     {
-        var values = Enum.GetValues(typeof(Direction));
-        return (Direction)values.GetValue(Rnd.Range(0, values.Length));
+        var values = Enum.GetValues(typeof(D));
+        return (D)values.GetValue(Rnd.Range(0, values.Length));
     }
 
-    private Direction TurnRight(Direction direction)
+    private D TurnCw(D direction)
     {
-        return (Direction)(((int)direction + 1) % 4);
+        return (D)(((int)direction + 1) % 4);
     }
 
-    private Direction Turn180(Direction direction)
+    private D Turn180(D direction)
     {
-        return (Direction)(((int)direction + 2) % 4);
+        return (D)(((int)direction + 2) % 4);
     }
 
-    private Direction TurnLeft(Direction direction)
+    private D TurnCcw(D direction)
     {
-        return (Direction)(((int)direction + 3) % 4);
+        return (D)(((int)direction + 3) % 4);
     }
 
-    private int GetNode(int node, Direction direction, int numSteps = 1)
+    private int GetNode(int node, D direction)
     {
         switch (direction)
         {
-            case Direction.Up:
+            case D.Up:
                 if (node / Height == 0) return OutOfBounds;
-                return node - (Height * numSteps);
-            case Direction.Right:
+                return node - Height;
+            case D.Right:
                 if (node % Width == Width - 1) return OutOfBounds;
-                return node + numSteps;
-            case Direction.Down:
+                return node + 1;
+            case D.Down:
                 if (node / Height == Height - 1) return OutOfBounds;
-                return node + (Height * numSteps);
-            case Direction.Left:
+                return node + Height;
+            case D.Left:
                 if (node % Width == 0) return OutOfBounds;
-                return node - numSteps;
+                return node - 1;
             default:
                 return OutOfBounds;
         }
     }
 
-    private bool Step(ref int node, Direction direction)
+    // Try to step in a direction. If it's out of bounds, don't step and return false.
+    // If not, check if it's what you expect (default empty).
+    // If it is, make the step and return true.
+    // If not, don't make the step and return false.
+    private bool Step(ref int node, D direction, int[] grid = null, int expect = Empty)
     {
+        // Check the puzzle grid by default. Provide another grid if you want.
+        if (grid == null) grid = _puzzle;
+
         var newNode = node;
         switch (direction)
         {
-            case Direction.Up:
+            case D.Up:
                 if (node / Height == 0) return false;
                 newNode = node - Height;
                 break;
-            case Direction.Right:
+            case D.Right:
                 if (node % Width == Width - 1) return false;
                 newNode = node + 1;
                 break;
-            case Direction.Down:
+            case D.Down:
                 if (node / Height == Height - 1) return false;
                 newNode = node + Height;
                 break;
-            case Direction.Left:
+            case D.Left:
                 if (node % Width == 0) return false;
                 newNode = node - 1;
                 break;
@@ -569,8 +588,7 @@ public class Shikaku : MonoBehaviour
                 return false;
         }
 
-        if (_puzzle[newNode] != Empty)
-            return false;
+        if (grid[newNode] != expect) return false;
 
         node = newNode;
         return true;
@@ -588,86 +606,232 @@ public class Shikaku : MonoBehaviour
     private bool CheckIfSolved()
     {
         int[] overlay = new int[36];
-        int node;
+        int node, storeNode, count;
         foreach (var shape in _shapes)
         {
+            var direction = shape.Direction;
+            var number = shape.Number;
             switch (shape.ShapeType.Shape)
             {
-                case ShapeLine:
+                case S.Line:
+                    node = FindStartNode(_grid, number, TurnCw(direction));
+                    overlay[node] = shape.Number;
+                    count = 1;
+                    while (Step(ref node, direction, _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case ShapeL:
+                case S.L:
+                    node = FindStartNode(_grid, number, Turn180(direction));
+                    overlay[node] = shape.Number;
+                    count = 1;
+                    while (Step(ref node, Turn180(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case ShapeT:
-                    node = FindStartNode(_grid, shape.Number, Turn180(shape.Direction));
-                    if (node == OutOfBounds) return false;
+                case S.T:
+                    node = FindStartNode(_grid, number, direction);
+                    overlay[node] = shape.Number;
+                    count = 1;
+                    while (Step(ref node, direction, _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    storeNode = node;
+                    count = 1;
+                    while (Step(ref node, TurnCcw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    node = storeNode;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case ShapeU:
+                case S.U:
+                    node = FindStartNode(_grid, number, direction);
+                    overlay[node] = shape.Number;
+                    storeNode = node;
+                    count = 1;
+                    while (Step(ref node, direction, _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    node = storeNode;
+                    count = 1;
+                    while (Step(ref node, TurnCcw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 3) return false;
+                    count = 1;
+                    while (Step(ref node, direction, _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case ShapePlus:
+                case S.Plus:
+                    node = FindStartNode(_grid, number, direction);
+                    overlay[node] = shape.Number;
+                    storeNode = Empty;
+                    count = 1;
+                    while (Step(ref node, direction, _grid, number)) {
+                        if (storeNode == Empty) // Check if the crossing of lines is here
+                        {
+                            if (Step(ref node, TurnCw(direction), _grid, number))
+                            {
+                                Step(ref node, TurnCcw(direction), _grid, number); // Step back to continue the first line
+                                storeNode = node; // Store where the crossing is
+                            }
+                        }
+                        overlay[node] = number;
+                        count++;
+                    }
+                    if (count < 3) return false;
+                    if (storeNode == Empty) return false;
+                    if (storeNode == node) return false; // That's a T, not a Plus
+                    node = storeNode;
+                    count = 1;
+                    while (Step(ref node, TurnCcw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    node = storeNode;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case ShapeH:
+                case S.H:
+                    node = FindStartNode(_grid, number, TurnCw(direction));
+                    overlay[node] = shape.Number;
+                    storeNode = Empty;
+                    count = 1;
+                    while (Step(ref node, direction, _grid, number))
+                    {
+                        if (storeNode == Empty) // Check if the crossing of lines is here
+                        {
+                            if (Step(ref node, TurnCw(direction), _grid, number))
+                            {
+                                Step(ref node, TurnCcw(direction), _grid, number); // Step back to continue the first line
+                                storeNode = node; // Store where the bar is
+                            }
+                        }
+                        overlay[node] = number;
+                        count++;
+                    }
+                    if (count < 3) return false;
+                    if (storeNode == Empty) return false;
+                    if (storeNode == node) return false; // That's a U, not an H
+                    node = storeNode;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 3) return false;
+                    storeNode = node;
+                    count = 1;
+                    while (Step(ref node, direction, _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    node = storeNode;
+                    count = 1;
+                    while (Step(ref node, Turn180(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case ShapeSmallS:
+                case S.SmallS:
+                    node = FindStartNode(_grid, number, TurnCw(direction));
+                    overlay[node] = shape.Number;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    if (!Step(ref node, direction, _grid, number)) return false;
+                    overlay[node] = number;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case ShapeSmallZ:
+                case S.SmallZ:
+                    node = FindStartNode(_grid, number, TurnCw(direction));
+                    overlay[node] = shape.Number;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    if (!Step(ref node, Turn180(direction), _grid, number)) return false;
+                    overlay[node] = number;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case ShapeLargeS:
+                case S.LargeS:
+                    node = FindStartNode(_grid, number, TurnCw(direction));
+                    overlay[node] = shape.Number;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    count = 1;
+                    while (Step(ref node, direction, _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 3) return false;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case ShapeLargeZ:
+                case S.LargeZ:
+                    node = FindStartNode(_grid, number, TurnCw(direction));
+                    overlay[node] = shape.Number;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
+                    count = 1;
+                    while (Step(ref node, Turn180(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 3) return false;
+                    count = 1;
+                    while (Step(ref node, TurnCw(direction), _grid, number)) { overlay[node] = number; count++; }
+                    if (count < 2) return false;
                     break;
-                case Shape2:
-                    break;
-                case Shape3:
-                    break;
-                case Shape4:
-                    break;
-                case Shape5:
-                    break;
-                case Shape6:
-                    break;
-                case Shape7:
+                case S._2:
+                case S._3:
+                case S._4:
+                case S._5:
+                case S._6:
+                case S._7:
+                    var checkShape = GetConnectedArea(_grid, shape.HintNode);
+                    if (checkShape.Nodes.Count != shape.ShapeType.MinSize) return false;
+                    foreach (var n in checkShape.Nodes) overlay[n] = shape.Number;
                     break;
             }
+            DevLog(shape.ShapeType.Name + " is correct.");
         }
+
+        // All shapes are correct. Now see if all squares are covered.
+        // (in the OVERLAY, which only has the clean shapes)
+        if (overlay.Contains(Empty)) {
+            DevLog("Still squares left that are empty or don't belong to the shape.");
+            return false;
+        }
+
         return true;
     }
 
-    private int FindStartNode(int[] grid, int number, Direction scanFrom)
+    private int FindStartNode(int[] grid, int number, D scanTowards)
     {
-        var node = 0;
-        var scanNode = 0;
-        if (scanFrom == Direction.Right) node = Width - 1;
-        else if (scanFrom == Direction.Down) node = Width * Height - 1;
-        else if (scanFrom == Direction.Left) node = Width * (Height - 1);
+        int startOfLineNode = 0, cursorNode;
 
-        while (true)
+        if (scanTowards == D.Left) startOfLineNode = Width - 1;
+        else if (scanTowards == D.Up) startOfLineNode = Width * Height - 1;
+        else if (scanTowards == D.Right) startOfLineNode = Width * (Height - 1);
+
+        cursorNode = startOfLineNode;
+
+        while (true) // At least the hint node has the correct number
         {
             // Check current node
-            if (_grid[node] == number) return node;
+            if (_grid[cursorNode] == number) return cursorNode;
 
             // Step in scan direction
-            scanNode = GetNode(node, TurnRight(scanFrom));
+            cursorNode = GetNode(cursorNode, TurnCcw(scanTowards));
 
             // Go to next line if needed
-            if (scanNode == OutOfBounds)
+            if (cursorNode == OutOfBounds)
             {
-                // CR
-                scanNode = GetNode(node, TurnLeft(scanFrom), 5);
-
-                // LF
-                scanNode = GetNode(scanNode, Turn180(scanFrom));
+                cursorNode = GetNode(startOfLineNode, scanTowards);
+                startOfLineNode = cursorNode;
             }
         }
     }
 
     private void DevLog(string message)
     {
-        Debug.Log(message);
+        //Debug.Log("[DEBUG] " + message);
     }
 
-    class ShapeType
+    class ShapeDef
     {
-        public int Shape { get; set; }
+        public S Shape { get; set; }
         public bool IsNumber { get; set; }
         public string Name { get; set; }
         public int MinSize { get; set; }
@@ -679,18 +843,18 @@ public class Shikaku : MonoBehaviour
     class Extension
     {
         public int Node { get; set; }
-        public Direction Direction { get; set; }
+        public D Direction { get; set; }
     }
 
     class Shape
     {
-        public ShapeType ShapeType { get; set; }
+        public ShapeDef ShapeType { get; set; }
         public List<int> Nodes { get; set; }
         public int HintNode { get; set; }
         public char HintChar { get; set; }
         public char FakeHintChar { get; set; }
         public bool CurrentHintCorrect { get; set; }
-        public Direction Direction { get; set; }
+        public D Direction { get; set; }
         public int Number { get; set; }
 
         // List of possible extensions, they can be visited in a later stage to fill the gaps
