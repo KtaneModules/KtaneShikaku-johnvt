@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEngine;
 using Rnd = UnityEngine.Random;
 using Assets;
+using System.Text;
 
 public class Shikaku : MonoBehaviour
 {
@@ -76,6 +77,7 @@ public class Shikaku : MonoBehaviour
 
         GeneratePuzzle();
 
+        Debug.LogFormat("[Shikaku #{0}] Possible solution:", _moduleId);
         string msg;
         for (var i = 0; i < 6; i++)
         {
@@ -83,6 +85,9 @@ public class Shikaku : MonoBehaviour
             for (var j = 0; j < 6; j++) msg += _puzzle[i * 6 + j];
             Debug.LogFormat("[Shikaku #{0}] {1}", _moduleId, msg);
         }
+        var hints = new StringBuilder().Append(' ', 36);
+        foreach (var shape in _shapes) hints[shape.HintNode] = shape.HintChar;
+        Debug.LogFormat("[Shikaku #{0}] Shape data for Logfile Analyzer: {1}", _moduleId, hints);
 
         msg = "";
         foreach (var shape in _shapes)

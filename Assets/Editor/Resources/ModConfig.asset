@@ -17,4 +17,4 @@ MonoBehaviour:
     shikaku\n\r\nCreated by Groover\n(Groover#1027\r on Discord)"
   version: 1.0
   outputFolder: build
-  previewImage: {fileID: 0}
+  previewImage: {fileID: 2800000, guid: 66fc24cfe1c8cf74093a4c837ccf37bd, type: 3}
