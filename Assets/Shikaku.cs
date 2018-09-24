@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -57,6 +57,7 @@ public class Shikaku : MonoBehaviour
     private List<int> _colors;
     private int _activeShape;
     private string _manual = "GWEKTYAIOUSDMQHJRLBXCVZNF";
+    private int _lastCoordPressed = -1;
 
     void Start()
     {
@@ -869,6 +870,61 @@ public class Shikaku : MonoBehaviour
         {
             Nodes = new List<int>();
             Extensions = new List<Extension>();
+        }
+    }
+
+    private string TwitchHelpMessage = @"Use '!{0} press a1' to press the button with a certain coordinate. Use '!{0} press a1 d r u l' to press the button, and the press the buttons in a direction from the previously pressed button.";
+
+    IEnumerator ProcessTwitchCommand(string command)
+    {
+        var parts = command.ToLowerInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+        if ( parts.Length > 1 && parts[0] == "press" && parts.Skip(1).All(part => (part.Length == 2 && "abcdef".Contains(part[0]) && "123456".Contains(part[1])) || (part.Length == 1 && "udlr".Contains(part))))
+        {
+            yield return null;
+
+            for (int i = 1; i < parts.Length; i++)
+            {
+                if (parts[i].Length == 2)
+                {
+                    var part = parts[i];
+                    int x = char.ToUpper(part[0]) - 'A';
+                    int y = Int32.Parse(part[1].ToString()) - 1;
+                    int coord = 6 * y + x; 
+                    PressButton(coord);
+                    _lastCoordPressed = coord; 
+                }
+                else if (parts[i].Length == 1)
+                {
+                    if (_lastCoordPressed == -1) { yield return "sendtochaterror You haven't specified a coordinate yet!"; yield break; }
+                    if (parts[i] == "u")
+                    {
+                        int coord = _lastCoordPressed - 6;
+                        if (coord < 0) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
+                        else { PressButton(coord); _lastCoordPressed = coord; }
+                    }
+                    else if (parts[i] == "d")
+                    {
+                        int coord = _lastCoordPressed + 6;
+                        if (coord > 35) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
+                        else { PressButton(coord); _lastCoordPressed = coord; }
+                    }
+                    else if (parts[i] == "l")
+                    {
+                        int coord = _lastCoordPressed - 1;
+                        if (coord / 6 != _lastCoordPressed / 6) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
+                        else { PressButton(coord); _lastCoordPressed = coord; }
+                    }
+                    else if (parts[i] == "r")
+                    {
+                        int coord = _lastCoordPressed + 1;
+                        if (coord / 6 != _lastCoordPressed / 6) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
+                        else { PressButton(coord); _lastCoordPressed = coord; }
+                    }
+                }
+
+                yield return new WaitForSeconds(.1f);
+            }
         }
     }
 }
