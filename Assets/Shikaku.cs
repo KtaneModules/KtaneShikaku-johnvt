@@ -873,7 +873,7 @@ public class Shikaku : MonoBehaviour
         }
     }
 
-    private string TwitchHelpMessage = @"Use '!{0} press a1' to press the button with a certain coordinate. Use '!{0} press a1 d r u l' to press the button, and the press the buttons in a direction from the previously pressed button.";
+    private string TwitchHelpMessage = @"Use '!{0} press a1' to press the button with a certain coordinate. Use '!{0} press a1 d r u l' to press the button, and then press the buttons in a direction from the previously pressed button.";
 
     IEnumerator ProcessTwitchCommand(string command)
     {
