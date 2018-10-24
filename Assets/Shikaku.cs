@@ -83,7 +83,7 @@ public class Shikaku : MonoBehaviour
         for (var i = 0; i < 6; i++)
         {
             msg = "";
-            for (var j = 0; j < 6; j++) msg += _puzzle[i * 6 + j];
+            for (var j = 0; j < 6; j++) msg += _colors[_puzzle[i * 6 + j]];
             Debug.LogFormat("[Shikaku #{0}] {1}", _moduleId, msg);
         }
         var hints = new StringBuilder().Append(' ', 36);
