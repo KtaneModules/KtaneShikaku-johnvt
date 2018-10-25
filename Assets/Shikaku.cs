@@ -123,6 +123,7 @@ public class Shikaku : MonoBehaviour
                     _activeShape = shape.Number;
                     ActiveColor.GetComponent<Renderer>().material = Materials[_colors[_grid[i]]];
                 }
+                CheckIfSolved();
                 return;
             }
         }
@@ -130,9 +131,13 @@ public class Shikaku : MonoBehaviour
         // Pressing another square
         if (_activeShape == 0) return;
         _grid[i] = _activeShape;
-
         Refresh();
-        _isSolved = CheckIfSolved();
+        CheckIfSolved();
+    }
+
+    private void CheckIfSolved()
+    {
+        _isSolved = IsSolved();
         if (_isSolved)
         {
             Module.HandlePass();
@@ -609,8 +614,14 @@ public class Shikaku : MonoBehaviour
     }
 
 
-    private bool CheckIfSolved()
+    private bool IsSolved()
     {
+        // Check if all hints are set correctly
+        foreach (var shape in _shapes)
+            if (!shape.ShapeType.IsNumber && !shape.CurrentHintCorrect)
+                return false;
+
+        // Check all shapes
         int[] overlay = new int[36];
         int node, storeNode, count;
         foreach (var shape in _shapes)
