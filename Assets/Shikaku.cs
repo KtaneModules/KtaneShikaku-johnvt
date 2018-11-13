@@ -57,7 +57,7 @@ public class Shikaku : MonoBehaviour
     private List<int> _colors;
     private int _activeShape;
     private string _manual = "GWEKTYAIOUSDMQHJRLBXCVZNF";
-    private int _lastCoordPressed = -1;
+    private int _currentTpNode = -1;
 
     void Start()
     {
@@ -901,36 +901,36 @@ public class Shikaku : MonoBehaviour
                     var part = parts[i];
                     int x = char.ToUpper(part[0]) - 'A';
                     int y = Int32.Parse(part[1].ToString()) - 1;
-                    int coord = 6 * y + x; 
-                    PressButton(coord);
-                    _lastCoordPressed = coord; 
+                    int node = 6 * y + x; 
+                    PressButton(node);
+                    _currentTpNode = node; 
                 }
                 else if (parts[i].Length == 1)
                 {
-                    if (_lastCoordPressed == -1) { yield return "sendtochaterror You haven't specified a coordinate yet!"; yield break; }
+                    if (_currentTpNode == -1) { yield return "sendtochaterror You haven't specified a coordinate yet!"; yield break; }
                     if (parts[i] == "u")
                     {
-                        int coord = _lastCoordPressed - 6;
-                        if (coord < 0) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
-                        else { PressButton(coord); _lastCoordPressed = coord; }
+                        if (_currentTpNode < 6) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
+                        _currentTpNode -= 6;
+                        PressButton(_currentTpNode);
                     }
                     else if (parts[i] == "d")
                     {
-                        int coord = _lastCoordPressed + 6;
-                        if (coord > 35) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
-                        else { PressButton(coord); _lastCoordPressed = coord; }
+                        if (_currentTpNode > 29) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
+                        _currentTpNode += 6;
+                        PressButton(_currentTpNode);
                     }
                     else if (parts[i] == "l")
                     {
-                        int coord = _lastCoordPressed - 1;
-                        if (coord / 6 != _lastCoordPressed / 6) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
-                        else { PressButton(coord); _lastCoordPressed = coord; }
+                        if (_currentTpNode % 6 == 0) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
+                        _currentTpNode -= 1;
+                        PressButton(_currentTpNode);
                     }
                     else if (parts[i] == "r")
                     {
-                        int coord = _lastCoordPressed + 1;
-                        if (coord / 6 != _lastCoordPressed / 6) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
-                        else { PressButton(coord); _lastCoordPressed = coord; }
+                        if (_currentTpNode % 6 == 5) { yield return "sendtochaterror You can't go outside the border!"; yield break; }
+                        _currentTpNode += 1;
+                        PressButton(_currentTpNode);
                     }
                 }
 
